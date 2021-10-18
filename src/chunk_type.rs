@@ -1,6 +1,5 @@
 use std::{convert::TryFrom, fmt::Display, str::FromStr};
-
-// TODO: error type
+use crate::Error;
 
 #[derive(Debug)]
 pub struct ChunkType {
@@ -15,30 +14,30 @@ impl TryFrom<[u8; 4]> for ChunkType {
 }
 
 impl FromStr for ChunkType {
-    type Err = ();
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 4 {
-            return Err(());
+            return Err(Box::new(ChunkTypeError::InvalidLength(s.len())));
         }
 
         let characters = s.as_bytes();
         for character in characters {
             if !Self::is_valid_byte(*character) {
-                return Err(());
+                return Err(Box::new(ChunkTypeError::InvalidCharacter(*character)));
             } 
         }
 
         match <[u8; 4]>::try_from(characters) {
             Ok(element) => Ok (ChunkType {data: element}),
-            Err(_) => Err(())
+            Err(error) => Err(Box::new(error))
         }
     }  
 }
 
 impl Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.data[0])
+        write!(f, "{}", String::from_utf8_lossy(&self.data))
     }
 }
 
@@ -55,19 +54,70 @@ impl ChunkType {
         self.data
     }
 
+    // the values needs to be in range A-Z and a-z, or 65-90 and 97-122 decimal
     fn is_valid_byte(b: u8) -> bool {
         (b >= 65 && b <= 90) || (b >= 97 && b <= 122)
     }
 
     // it depends on ancillary bit which is 5th bit of first byte
     fn is_critical(&self) -> bool {
-        let first_byte = self.data[0];
-        let ancillary_bit = first_byte >> 5 & 0x1;
+        match self.data[0] >> 5 & 0x1 {
+            0 => true,
+            _ => false
+        }
+    }
 
-        if ancillary_bit == 0 {
-            true
-        } else {
-            false
+    // bit 5 of the second byte
+    fn is_public(&self) -> bool {
+        match self.data[1] >> 5 & 0x1 {
+            0 => true,
+            _ => false
+        }
+    }
+
+    // bit 5 of the third byte
+    // Must be 0 (uppercase)
+    // At the present time all chunk names must have uppercase third letters
+    fn is_reserved_bit_valid(&self) -> bool {
+        match self.data[2] >> 5 & 0x1 {
+            0 => true,
+            _ => false
+        }
+    }
+
+    // bit 5 of the fourth byte
+    fn is_safe_to_copy(&self) -> bool {
+        match self.data[3] >> 5 & 0x1 {
+            1 => true,
+            _ => false
+        }
+    }
+
+    // validation check
+    fn is_valid(&self) -> bool {
+        let values = self.bytes();
+        for value in values {
+            if !Self::is_valid_byte(value) {
+                return false;
+            }
+        }
+        self.is_reserved_bit_valid()
+    }
+}
+
+#[derive(Debug)]
+pub enum ChunkTypeError {
+    InvalidCharacter(u8),
+    InvalidLength(usize)
+}
+
+impl std::error::Error for ChunkTypeError {}
+
+impl Display for ChunkTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::InvalidCharacter(byte) => write!(f, "invalid character: {}", byte),
+            Self::InvalidLength(length) => write!(f, "length must be 4, right now: {}", length)
         }
     }
 }
@@ -104,7 +154,7 @@ mod tests {
         let chunk = ChunkType::from_str("ruSt").unwrap();
         assert!(!chunk.is_critical());
     }
-    /* 
+    
     #[test]
     pub fn test_chunk_type_is_public() {
         let chunk = ChunkType::from_str("RUSt").unwrap();
@@ -116,7 +166,7 @@ mod tests {
         let chunk = ChunkType::from_str("RuSt").unwrap();
         assert!(!chunk.is_public());
     }
-
+     
     #[test]
     pub fn test_chunk_type_is_reserved_bit_valid() {
         let chunk = ChunkType::from_str("RuSt").unwrap();
@@ -140,7 +190,7 @@ mod tests {
         let chunk = ChunkType::from_str("RuST").unwrap();
         assert!(!chunk.is_safe_to_copy());
     }
-
+    
     #[test]
     pub fn test_valid_chunk_is_valid() {
         let chunk = ChunkType::from_str("RuSt").unwrap();
@@ -161,7 +211,7 @@ mod tests {
         let chunk = ChunkType::from_str("RuSt").unwrap();
         assert_eq!(&chunk.to_string(), "RuSt");
     }
-
+    
     #[test]
     pub fn test_chunk_type_trait_impls() {
         let chunk_type_1: ChunkType = TryFrom::try_from([82, 117, 83, 116]).unwrap();
@@ -169,5 +219,5 @@ mod tests {
         let _chunk_string = format!("{}", chunk_type_1);
         let _are_chunks_equal = chunk_type_1 == chunk_type_2;
     }
-    */
+    
 }
