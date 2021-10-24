@@ -3,11 +3,11 @@ use crate::Error;
 
 #[derive(Debug)]
 pub struct ChunkType {
-    data: [u8; 4]
+    pub data: [u8; 4]
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
-    type Error = ();
+    type Error = Error;
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         Ok(ChunkType {data: value})
     }
@@ -50,7 +50,7 @@ impl PartialEq for ChunkType {
 impl Eq for ChunkType {}
 
 impl ChunkType {
-    fn bytes(&self) -> [u8; 4] {
+    pub fn bytes(&self) -> [u8; 4] {
         self.data
     }
 
