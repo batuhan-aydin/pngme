@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::{convert::TryFrom, fmt::Display};
 use crate::chunk_type::ChunkType;
 use crate::{Error, Result};
@@ -19,8 +20,13 @@ impl TryFrom<&[u8]> for Chunk {
         let data = value[8..value.len()-4].to_vec();
         let correct_crc = crc::crc32::checksum_ieee(&value[4..value.len()-4]);
         let provided_crc = u32::from_be_bytes(<[u8; 4]>::try_from(&value[value.len()-4..value.len()])?);
+        
         if correct_crc != provided_crc {
             return Err(Box::new(ChunkError::InvalidCrc));
+        }
+
+        if length != data.len() as u32 {
+            return Err(Box::new(ChunkError::InvalidDataLength));
         }
 
         Ok (Chunk {
@@ -41,6 +47,15 @@ impl Display for Chunk {
 }
 
 impl Chunk {
+    pub fn new(chunk_type: ChunkType, data: Vec<u8>) -> Self {
+        let crc_data: Vec<u8> = chunk_type.bytes().iter().chain(&data).cloned().collect();
+        Chunk {
+            length: data.len() as u32,
+            chunk_type: chunk_type,
+            data: data,
+            crc: crc::crc32::checksum_ieee(&crc_data)
+        }
+    }
 
     fn length(&self) -> u32 {
         self.length
@@ -78,7 +93,7 @@ impl Chunk {
 
 #[derive(Debug)]
 pub enum ChunkError {
-    InvalidInput,
+    InvalidDataLength,
     InvalidCrc
 }
 
@@ -87,7 +102,7 @@ impl std::error::Error for ChunkError {}
 impl Display for ChunkError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            ChunkError::InvalidInput => write!(f, "Invalid input"),
+            ChunkError::InvalidDataLength => write!(f, "Invalid data length"),
             &ChunkError::InvalidCrc => write!(f, "Incorrect crc")
         }
     }
