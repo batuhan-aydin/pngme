@@ -55,12 +55,12 @@ impl ChunkType {
     }
 
     // the values needs to be in range A-Z and a-z, or 65-90 and 97-122 decimal
-    fn is_valid_byte(b: u8) -> bool {
+    pub fn is_valid_byte(b: u8) -> bool {
         (b >= 65 && b <= 90) || (b >= 97 && b <= 122)
     }
 
     // it depends on ancillary bit which is 5th bit of first byte
-    fn is_critical(&self) -> bool {
+    pub fn is_critical(&self) -> bool {
         match self.data[0] >> 5 & 0x1 {
             0 => true,
             _ => false
@@ -68,7 +68,7 @@ impl ChunkType {
     }
 
     // bit 5 of the second byte
-    fn is_public(&self) -> bool {
+    pub fn is_public(&self) -> bool {
         match self.data[1] >> 5 & 0x1 {
             0 => true,
             _ => false
@@ -78,7 +78,7 @@ impl ChunkType {
     // bit 5 of the third byte
     // Must be 0 (uppercase)
     // At the present time all chunk names must have uppercase third letters
-    fn is_reserved_bit_valid(&self) -> bool {
+    pub fn is_reserved_bit_valid(&self) -> bool {
         match self.data[2] >> 5 & 0x1 {
             0 => true,
             _ => false
@@ -86,7 +86,7 @@ impl ChunkType {
     }
 
     // bit 5 of the fourth byte
-    fn is_safe_to_copy(&self) -> bool {
+    pub fn is_safe_to_copy(&self) -> bool {
         match self.data[3] >> 5 & 0x1 {
             1 => true,
             _ => false
@@ -94,7 +94,7 @@ impl ChunkType {
     }
 
     // validation check
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         let values = self.bytes();
         for value in values {
             if !Self::is_valid_byte(value) {

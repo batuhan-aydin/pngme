@@ -1,4 +1,3 @@
-use std::io::Read;
 use std::{convert::TryFrom, fmt::Display};
 use crate::chunk_type::ChunkType;
 use crate::{Error, Result};
@@ -16,12 +15,17 @@ impl TryFrom<&[u8]> for Chunk {
 
     fn try_from(value: &[u8]) -> Result<Self> {
         let length = u32::from_be_bytes(<[u8; 4]>::try_from(&value[0..4])?);
+        println!("{:?}", length);
         let chunk_type = ChunkType::try_from(<[u8; 4]>::try_from(&value[4..8])?)?;
-        let data = value[8..value.len()-4].to_vec();
-        let correct_crc = crc::crc32::checksum_ieee(&value[4..value.len()-4]);
+        println!("{:?}", chunk_type);
+        let data = value[8..length as usize + 8].to_vec();
+        println!("{:?}", data);
+        let correct_crc = crc::crc32::checksum_ieee(&value[4..length as usize + 8]);
         let provided_crc = u32::from_be_bytes(<[u8; 4]>::try_from(&value[value.len()-4..value.len()])?);
         
         if correct_crc != provided_crc {
+            println!("{:?}", correct_crc);
+            println!("{:?}", provided_crc);
             return Err(Box::new(ChunkError::InvalidCrc));
         }
 
@@ -57,30 +61,30 @@ impl Chunk {
         }
     }
 
-    fn length(&self) -> u32 {
+    pub fn length(&self) -> u32 {
         self.length
     }
 
-    fn chunk_type(&self) -> &ChunkType {
+    pub fn chunk_type(&self) -> &ChunkType {
         &self.chunk_type
     }
 
-    fn data(&self) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         &self.data
     }
 
-    fn crc(&self) -> u32 {
+    pub fn crc(&self) -> u32 {
         self.crc
     }
 
-    fn data_as_string(&self) -> Result<String> {
+    pub fn data_as_string(&self) -> Result<String> {
         match std::str::from_utf8(&self.data) {
             Ok(str_data) => Ok(String::from(str_data)),
             Err(error) => Err(Box::new(error))
         }
     }
 
-    fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> Vec<u8> {
         self.length.to_be_bytes()
         .iter()
         .cloned()
@@ -111,8 +115,6 @@ impl Display for ChunkError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk_type::ChunkType;
-    use std::str::FromStr;
     
     fn testing_chunk() -> Chunk {
         let data_length: u32 = 42;

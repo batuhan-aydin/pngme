@@ -1,30 +1,95 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Display;
+use std::str::FromStr;
+use crate::chunk_type::ChunkType;
 use crate::{Error, Result};
 use crate::chunk::Chunk;
 
-pub trait PNG_FILE {
-    const STANDART_HEADER: [u8; 8];
+pub trait PngFile {
+    const STANDARD_HEADER: [u8; 8];
 }
 
+#[derive(Debug)]
 pub struct Png {
     chunks: Vec<Chunk>
 }
 
-impl PNG_FILE for Png {
-    const STANDART_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+impl PngFile for Png {
+    const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
+}
+
+impl Display for Png {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl Png {
-
-    fn from_chunks(chunks: Vec<Chunk>) -> Self {
+    /// Creates a `Png` from a list of chunks using the correct header
+    pub fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Self { chunks }
+    }
+
+     /// Appends a chunk to the end of this `Png` file's `Chunk` list.
+    pub fn append_chunk(&mut self, chunk: Chunk) {
+        self.chunks.push(chunk);
+    }
+
+    /// Searches for a `Chunk` with the specified `chunk_type` and removes the first
+    /// matching `Chunk` from this `Png` list of chunks.
+    pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
+        let wanted_chunk_type = ChunkType::from_str(chunk_type)?;
+        let index = self.chunks
+                               .iter()
+                               .position(|x| *x.chunk_type() == wanted_chunk_type)
+                               .ok_or(PngError::NotFoundChunk)?;
+    
+        Ok (self.chunks.remove(index))
+    }
+
+    /// The header of this PNG.
+    pub fn header(&self) -> &[u8; 8] {
+        &Png::STANDARD_HEADER
+    }
+
+    /// Lists the `Chunk`s stored in this `Png`
+    pub fn chunks(&self) -> &[Chunk] {
+        &self.chunks
+    }
+
+    /// Searches for a `Chunk` with the specified `chunk_type` and returns the first
+    /// matching `Chunk` from this `Png`.
+    pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+        let wanted_chunk_type= match ChunkType::from_str(chunk_type) {
+            Ok(value) => value,
+            Err(_) => return None
+        };
+
+        let position = self.chunks
+        .iter()
+        .position(|x| *x.chunk_type() == wanted_chunk_type);
+ 
+        match position {
+            Some(index) => self.chunks.get(index),
+            None => None
+        }
+    }
+
+    /// Returns this `Png` as a byte sequence.
+    /// These bytes will contain the header followed by the bytes of all of the chunks.
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut result: Vec<u8> = Vec::with_capacity(self.chunks.len() * 36 + 1);
+        result.extend(Png::STANDARD_HEADER.iter().cloned());
+        for chunk in &self.chunks {
+            result.append(&mut chunk.as_bytes());
+        }
+        result
     }
 }
 
 pub fn check_header(value: &[u8]) -> bool {
     for i in 0..8 {
-        if value[i] != Png::STANDART_HEADER[i] {
+        if value[i] != Png::STANDARD_HEADER[i] {
             return false;
         }
     }
@@ -35,20 +100,21 @@ impl TryFrom<&[u8]> for Png {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
-        if value.len() < Self::STANDART_HEADER.len() {
+        if value.len() < Self::STANDARD_HEADER.len() {
             return Err(Box::new(PngError::InvalidLength));
         }
         if !check_header(value) {
             return Err(Box::new(PngError::InvalidHeader));
         }
-        
-        let mut index = 8; // starting index
         let mut chunks: Vec<Chunk> = Vec::new();
+        let mut index = 8; // starting index
         while index < value.len() {
-            let bytes = &value[index..];
+            let data_length = u32::from_be_bytes(value[index..index+4].try_into().unwrap());
+            let chunk_length: usize = 12 + data_length as usize;
+            let bytes = &value[index..index + chunk_length];
+            println!("{:?}", bytes);
             let chunk = Chunk::try_from(bytes)?;
-            index += 36;
-
+            index += chunk_length;
             chunks.push(chunk);
         }
 
@@ -61,7 +127,8 @@ impl TryFrom<&[u8]> for Png {
 #[derive(Debug)]
 enum PngError {
     InvalidLength,
-    InvalidHeader
+    InvalidHeader,
+    NotFoundChunk
 }
 
 impl std::error::Error for PngError {}
@@ -77,7 +144,6 @@ mod tests {
     use super::*;
     use crate::chunk_type::ChunkType;
     use crate::chunk::Chunk;
-    use std::str::FromStr;
     use std::convert::TryFrom;
     
     fn testing_chunks() -> Vec<Chunk> {
@@ -96,14 +162,12 @@ mod tests {
     }
      
     fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk> {
-        use std::str::FromStr;
-
         let chunk_type = ChunkType::from_str(chunk_type)?;
         let data: Vec<u8> = data.bytes().collect();
 
         Ok(Chunk::new(chunk_type, data))
     }
-    /* 
+     
     #[test]
     fn test_from_chunks() {
         let chunks = testing_chunks();
@@ -147,7 +211,7 @@ mod tests {
 
         assert!(png.is_err());
     }
-
+     
     #[test]
     fn test_invalid_chunk() {
         let mut chunk_bytes: Vec<u8> = testing_chunks()
@@ -169,7 +233,6 @@ mod tests {
 
         assert!(png.is_err());
     }
-
 
     #[test]
     fn test_list_chunks() {
@@ -236,7 +299,7 @@ mod tests {
 
         let _png_string = format!("{}", png);
     }
-    */
+    
 
     // This is the raw bytes for a shrunken version of the `dice.png` image on Wikipedia
     const PNG_FILE: [u8; 4803] = [
