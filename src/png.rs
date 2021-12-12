@@ -20,7 +20,7 @@ impl PngFile for Png {
 
 impl Display for Png {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        todo!()
+        write!(f, "{:?}", self.chunks)
     }
 }
 
@@ -135,7 +135,11 @@ impl std::error::Error for PngError {}
 
 impl Display for PngError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        match self {
+            PngError::InvalidLength => write!(f, "Invalid lengths"),
+            PngError::InvalidHeader => write!(f, "Invalid header"),
+            PngError::NotFoundChunk => write!(f, "Chunk is not fond")
+        }
     }
 }
 
