@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
 use clap::{App, Arg};
-use commands::{SubCommandType, get_subcommand};
+use commands::{SubCommandType, get_subcommand, encode_operation, 
+    decode_operation, remove_operation, print_operation};
 
 mod args;
 mod chunk;
@@ -23,10 +24,10 @@ fn main() -> Result<()> {
                     .get_matches();
     
     match matches.subcommand() {
-        Some(("encode", sub_matches)) => println!("{:?}", sub_matches),
-        Some(("decode", sub_matches)) => println!("{:?}", sub_matches),
-        Some(("remove", sub_matches)) => println!("{:?}", sub_matches),
-        Some(("print", sub_matches)) => println!("{:?}", sub_matches),
+        Some(("encode", sub_matches)) => encode_operation(sub_matches),
+        Some(("decode", sub_matches)) => decode_operation(sub_matches),
+        Some(("remove", sub_matches)) => remove_operation(sub_matches),
+        Some(("print", sub_matches)) => print_operation(sub_matches),
         _ => eprintln!("not the droid you're looking for, use --help")
     } 
     Ok(())

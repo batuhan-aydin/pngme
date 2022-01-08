@@ -1,4 +1,4 @@
-use clap::{App};
+use clap::{App, ArgMatches};
 
 use crate::{get_argument, ArgumentType};
  
@@ -31,22 +31,19 @@ pub fn get_subcommand(subcommand_type: SubCommandType) -> App<'static> {
     }
 }
 
-/*
-const ENCODE_ARGUMENTS: &'static [Arg] = &[
-    Arg::new("File Path")
-        .value_name("FILE_PATH")
-        .help("file path like ./my-cat.png")
-        .required(true),
-    Arg::new("Chunk Type")
-        .value_name("CHUNK_TYPE")
-        .help("chunk type for example ruSt")
-        .required(true),
-    Arg::new("Secret Message")
-        .value_name("MESSAGE")
-        .help("the message that you wanna encode")
-        .required(true),
-    Arg::new("Output file")
-        .value_name("OUTPUT_FILE")
-        .help("output file like ./new-cat.png")
+// TODO
+pub fn encode_operation(args: &ArgMatches) {
+    println!("{:?}", args);
+}
 
-]; */
+pub fn decode_operation(args: &ArgMatches) {
+    println!("{:?}", args);
+}
+
+pub fn remove_operation(args: &ArgMatches) {
+    println!("{:?}", args);
+}
+
+pub fn print_operation(args: &ArgMatches) {
+    println!("{:?}", args);
+}
